@@ -53,7 +53,7 @@ case "${DEVICE}" in
     [ "${ENABLE_32BIT}" == "true" ] && EMUS_32BIT="box86 desmume-lr gpsp-lr pcsx_rearmed-lr"
     PKG_DEPENDS_TARGET+=" common-shaders glsl-shaders"
     PKG_EMUS+=" box64 azahar-sa dolphin-sa drastic-sa mednafen melonds-sa portmaster scummvmsa yabasanshiro-sa duckstation-sa"
-    LIBRETRO_CORES+=" dolphin-lr flycast2021-lr geolith-lr uae4arm"
+    LIBRETRO_CORES+=" azahar-lr dolphin-lr flycast2021-lr geolith-lr uae4arm"
     PKG_RETROARCH+=" retropie-shaders"
     ;;
   RK3588)
@@ -153,6 +153,7 @@ makeinstall_target() {
   case ${DEVICE} in
     SDM845|SM8250|SM8550|SM8650|S922X|RK3566)
       add_emu_core 3ds azahar azahar-sa true
+      add_emu_core 3ds retroarch azahar false
       add_es_system 3ds
       ;;
     RK3588)
