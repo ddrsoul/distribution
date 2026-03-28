@@ -17,10 +17,6 @@ fi
 
 if [ "${OPENGLES_SUPPORT}" = "yes" ]; then
   PKG_DEPENDS_TARGET+=" ${OPENGLES}"
-
-  if [ "${PREFER_GLES}" = "yes" ]; then
-    PKG_PATCH_DIRS+=" prefer_gles"
-  fi
 fi
 
 if [ "${VULKAN_SUPPORT}" = "yes" ]; then
