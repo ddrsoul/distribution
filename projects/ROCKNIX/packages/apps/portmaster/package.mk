@@ -11,7 +11,7 @@ PKG_DEPENDS_TARGET="toolchain rocknix-hotkey gamecontrollerdb oga_controls contr
 PKG_LONGDESC="Portmaster - a simple tool that allows you to download various game ports"
 PKG_TOOLCHAIN="manual"
 
-COMPAT_URL="https://github.com/ROCKNIX/packages/raw/main/compat.zip"
+COMPAT_URL="https://github.com/ddrsoul/packages/raw/main/compat.zip"
 
 makeinstall_target() {
   export STRIP=true
