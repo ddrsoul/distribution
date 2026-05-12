@@ -2,16 +2,16 @@
 # Copyright (C) 2023-present Team LibreELEC (https://libreelec.tv)
 
 PKG_NAME="libretro-beetle-saturn"
-PKG_VERSION="c461d1e113eed3e56214132081261311a99ebde0" #use SCU DSP JIT version from pstef
-PKG_SHA256="5cd5f5a9ede1ffcc442283cde0beab6bdc50f560eba94c49e92788a79c9db6bb"
+PKG_VERSION="0a78a9a5ab0088ba19f21e028dda9f4b4d7c9e48"
+PKG_SHA256="3d342a7b29640042af7e245b97375f4e287925c0f5b7f95144ae57b12f96bef8"
 PKG_LICENSE="GPLv2"
-PKG_SITE="https://github.com/pstef/beetle-saturn-libretro"
-PKG_URL="https://github.com/pstef/beetle-saturn-libretro/archive/${PKG_VERSION}.tar.gz"
+PKG_SITE="https://github.com/libretro/beetle-saturn-libretro"
+PKG_URL="https://github.com/libretro/beetle-saturn-libretro/archive/${PKG_VERSION}.tar.gz"
 PKG_DEPENDS_TARGET="toolchain"
 PKG_LONGDESC="Standalone port of Mednafen Saturn to libretro."
 PKG_TOOLCHAIN="make"
 
-PKG_MAKE_OPTS_TARGET="HAVE_CDROM=1 WANT_DSP_JIT=1"
+PKG_MAKE_OPTS_TARGET="HAVE_CDROM=1"
 
 PKG_LIBNAME="mednafen_saturn_libretro.so"
 PKG_LIBPATH="${PKG_LIBNAME}"
