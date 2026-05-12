@@ -1108,6 +1108,9 @@ makeinstall_target() {
       add_emu_core saturn retroarch beetle_saturn false
       add_emu_core saturn mednafen ss false
       ;;
+    RK3566)
+      add_emu_core saturn retroarch beetle_saturn false
+      ;;
     SDM845|SM8250|SM8550|SM8650)
       add_emu_core saturn retroarch beetle_saturn false
       add_emu_core saturn retroarch kronos false
