@@ -2,7 +2,7 @@
 # Copyright (C) 2022-present JELOS (https://github.com/JustEnoughLinuxOS)
 
 PKG_NAME="beetle-saturn-lr"
-PKG_VERSION="c461d1e113eed3e56214132081261311a99ebde0" # use SCU DSP JIT version from pstef
+PKG_VERSION="e21829da8caa2cfb7a1639ca7e7e9015d8e46a00" # use SCU DSP JIT version from pstef
 PKG_LICENSE="GPLv2"
 PKG_SITE="https://github.com/pstef/beetle-saturn-libretro"
 PKG_URL="${PKG_SITE}.git"
@@ -20,9 +20,9 @@ fi
 
 make_target() {
   if [ "${ARCH}" == "i386" -o "${ARCH}" == "x86_64" ]; then
-    make platform=unix CC=${CC} CXX=${CXX} AR=${AR} WANT_DSP_JIT=1
+    make platform=unix CC=${CC} CXX=${CXX} AR=${AR}
   else
-    make platform=armv CC=${CC} CXX=${CXX} AR=${AR} WANT_DSP_JIT=1
+    make platform=armv CC=${CC} CXX=${CXX} AR=${AR}
   fi
 }
 
