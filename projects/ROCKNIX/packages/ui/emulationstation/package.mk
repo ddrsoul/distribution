@@ -2,10 +2,10 @@
 # Copyright (C) 2024-present ROCKNIX (https://github.com/ROCKNIX)
 
 PKG_NAME="emulationstation"
-PKG_VERSION="a1821c1e5fde4faace989139cac891ee26d878d4"
-PKG_GIT_CLONE_BRANCH="master"
+PKG_VERSION="45b42739b307026da5fd9706a3c06dba842bc2ef"
+PKG_GIT_CLONE_BRANCH="batteryplus"
 PKG_LICENSE="GPL"
-PKG_SITE="https://github.com/ROCKNIX/emulationstation-next"
+PKG_SITE="https://github.com/ddrsoul/emulationstation-next"
 PKG_URL="${PKG_SITE}.git"
 PKG_DEPENDS_TARGET="boost toolchain SDL2 freetype curl freeimage bash rapidjson SDL2_mixer fping p7zip alsa vlc drm_tool pugixml"
 PKG_NEED_UNPACK="busybox"
@@ -29,7 +29,8 @@ PKG_CMAKE_OPTS_TARGET+=" -DROCKNIX=1 \
                          -DENABLE_FILEMANAGER=0 \
                          -DCEC=0 \
                          -DENABLE_PULSE=1 \
-                         -DUSE_SYSTEM_PUGIXML=1"
+                         -DUSE_SYSTEM_PUGIXML=1 \
+                         -DBATTERYPLUS=1"
 
 pre_configure_target() {
   for key in SCREENSCRAPER_DEV_LOGIN \
