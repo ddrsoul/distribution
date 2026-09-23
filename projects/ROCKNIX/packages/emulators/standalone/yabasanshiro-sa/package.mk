@@ -5,10 +5,10 @@
 
 PKG_NAME="yabasanshiro-sa"
 PKG_LICENSE="GPLv2"
-PKG_SITE="https://github.com/sydarn/yabause"
+PKG_SITE="https://github.com/ddrsoul/yabause"
 PKG_URL="${PKG_SITE}.git"
-PKG_VERSION="a40dace1ae0af3ebd45848549fdf396f40e3930f"
-PKG_GIT_CLONE_BRANCH="pi4-update"
+PKG_VERSION="ff73979f071de67eb336dbe6d5e454c49b662e9f"
+PKG_GIT_CLONE_BRANCH="rocknix"
 PKG_ARCH="aarch64"
 PKG_DEPENDS_TARGET="toolchain SDL2 boost openal-soft zlib"
 PKG_LONGDESC="Yabause is a Sega Saturn emulator and took over as Yaba Sanshiro"
