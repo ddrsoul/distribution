@@ -60,12 +60,15 @@ CPU=$(get_setting cpu_speed "${PLATFORM}" "${GAME}")
 EMOUSE=$(get_setting emulate_mouse "${PLATFORM}" "${GAME}")
 RENDERER=$(get_setting graphics_backend "${PLATFORM}" "${GAME}")
 RES=$(get_setting resolution_scale "${PLATFORM}" "${GAME}")
+INTEGER_SCALING=$(get_setting integer_scaling "${PLATFORM}" "${GAME}")
 ROTATE=$(get_setting rotate_screen "${PLATFORM}" "${GAME}")
 SLAYOUT=$(get_setting screen_layout "${PLATFORM}" "${GAME}")
 CSHADERS=$(get_setting cache_shaders "${PLATFORM}" "${GAME}")
 HSHADERS=$(get_setting hardware_shaders "${PLATFORM}" "${GAME}")
 ACCURATE_HW_SHADERS=$(get_setting accurate_hardware_shaders "${PLATFORM}" "${GAME}")
 DISABLE_RIGHT_EYE_RENDER=$(get_setting disable_right_eye_render "${PLATFORM}" "${GAME}")
+SIMULATE_3DS_GPU_TIMINGS=$(get_setting simulate_3ds_gpu_timings "${PLATFORM}" "${GAME}")
+SIMULATE_HEADPHONES_PLUGGED=$(get_setting simulate_headphones_plugged "${PLATFORM}" "${GAME}")
 
 #Set the cores to use
 CORES=$(get_setting "cores" "${PLATFORM}" "${GAME}")
@@ -93,6 +96,14 @@ case "${RES}" in
   2) sed -i '/^resolution_factor=/c\resolution_factor=2' ${CONF_FILE};;
   3) sed -i '/^resolution_factor=/c\resolution_factor=3' ${CONF_FILE};;
   *) sed -i '/^resolution_factor=/c\resolution_factor=1' ${CONF_FILE};;
+esac
+
+# Integer scaling - default to false
+sed -i '/^use_integer_scaling\\default=/c\use_integer_scaling\\default=false' ${CONF_FILE}
+
+case "${INTEGER_SCALING}" in
+  1) sed -i '/^use_integer_scaling=/c\use_integer_scaling=true' ${CONF_FILE};;
+  *) sed -i '/^use_integer_scaling=/c\use_integer_scaling=false' ${CONF_FILE};;
 esac
 
 # Rotate Screen - default to false
@@ -152,11 +163,6 @@ case "${SLAYOUT}" in
     sed -i '/^layout_option=/c\layout_option=3' ${CONF_FILE}
     sed -i '/^swap_screen=/c\swap_screen=false' ${CONF_FILE}
     ;;
-  4)
-    # Hybrid
-    sed -i '/^layout_option=/c\layout_option=5' ${CONF_FILE}
-    sed -i '/^swap_screen=/c\swap_screen=false' ${CONF_FILE}
-    ;;
   5)
     # Separate windows
     sed -i '/^layout_option=/c\layout_option=4' "${CONF_FILE}"
@@ -194,10 +200,33 @@ case "${DISABLE_RIGHT_EYE_RENDER}" in
   *) sed -i '/^disable_right_eye_render=/c\disable_right_eye_render=false' ${CONF_FILE};;
 esac
 
+# Simulate 3DS GPU Timings - default to false
+sed -i '/^simulate_3ds_gpu_timings\\default=/c\simulate_3ds_gpu_timings\\default=false' ${CONF_FILE}
+
+case "${SIMULATE_3DS_GPU_TIMINGS}" in
+  1) sed -i '/^simulate_3ds_gpu_timings=/c\simulate_3ds_gpu_timings=true' ${CONF_FILE};;
+  *) sed -i '/^simulate_3ds_gpu_timings=/c\simulate_3ds_gpu_timings=false' ${CONF_FILE};;
+esac
+
+# Simulate Headphones Plugged - default to false
+sed -i '/^simulate_headphones_plugged\\default=/c\simulate_headphones_plugged\\default=false' ${CONF_FILE}
+
+case "${SIMULATE_HEADPHONES_PLUGGED}" in
+  1) sed -i '/^simulate_headphones_plugged=/c\simulate_headphones_plugged=true' ${CONF_FILE};;
+  *) sed -i '/^simulate_headphones_plugged=/c\simulate_headphones_plugged=false' ${CONF_FILE};;
+esac
+
+# QT platform - some device / screen combinations need xcb
+case ${HW_DEVICE} in
+    SM8550|SM8250)
+        [[ "${DEVICE_HAS_DUAL_SCREEN}" = "true" ]] && export QT_QPA_PLATFORM=xcb
+    ;;
+esac
+
 rm -rf /storage/.local/share/azahar
 ln -sf ${CONF_DIR} /storage/.local/share/azahar
 
-# Run Lime Emulator
+# Run Azahar Emulator
 if [ "${EMOUSE}" = "0" ]; then
   # Use base gptk file
   ${GPTOKEYB} azahar -c ${CONF_DIR}/azahar.gptk &
