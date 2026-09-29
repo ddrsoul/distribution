@@ -373,4 +373,16 @@ and keyboard to modify settings.</desc>
         <players>1</players>
         <image>./images/nfs.svg</image>
      </game>
+    <game>
+        <path>./Scrape Game Art.sh</path>
+        <name>Scrape Game Art</name>
+        <desc>Downloads box art, title screens and descriptions for every system in /storage/roms with rockscrape (libretro thumbnails and the LaunchBox games database, no account or API key needed). Existing gamelist.xml files are merged and backed up. The first run downloads a ~100 MB database once and needs ~400 MB free space. Needs Wi-Fi.</desc>
+        <developer>ddrsoul</developer>
+        <publisher>ROCKNIX</publisher>
+        <rating>5.0</rating>
+        <releasedate>2026</releasedate>
+        <genre>tool</genre>
+        <players>1</players>
+        <image>./images/rockscrape.svg</image>
+    </game>
 </gameList>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg width="100%" height="100%" viewBox="0 0 1200 1080" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="1200" height="1080" style="fill:rgb(46,46,46);"/>
+  <!-- picture frame -->
+  <rect x="330" y="250" width="460" height="380" rx="28" ry="28" style="fill:none;stroke:white;stroke-width:36;"/>
+  <!-- sun -->
+  <circle cx="450" cy="370" r="48" style="fill:white;"/>
+  <!-- mountains -->
+  <path d="M 348 612 L 500 450 L 590 540 L 650 480 L 772 612 Z" style="fill:white;"/>
+  <!-- magnifier -->
+  <circle cx="790" cy="640" r="120" style="fill:rgb(46,46,46);stroke:white;stroke-width:40;"/>
+  <path d="M 870 725 L 960 815" style="fill:none;stroke:white;stroke-width:56;stroke-linecap:round;"/>
+</svg>
