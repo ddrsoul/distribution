@@ -19,7 +19,7 @@
 ################################################################################
 
 PKG_NAME="snes9x2010-lr"
-PKG_VERSION="f9ae8fd28b13070a945a829ccf41cbf90a21d0f7"
+PKG_VERSION="7db129b1ecdccb38cb4d7184bcbed39beed79656"
 PKG_LICENSE="Non-commercial"
 PKG_SITE="https://github.com/libretro/snes9x2010"
 PKG_URL="${PKG_SITE}/archive/${PKG_VERSION}.tar.gz"

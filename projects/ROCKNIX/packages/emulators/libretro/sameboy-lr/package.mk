@@ -20,7 +20,7 @@
 ################################################################################
 
 PKG_NAME="sameboy-lr"
-PKG_VERSION="2d29ece3b8e7ec44347c9daad0fabb84912ed44f"
+PKG_VERSION="aa158a889a48b538a0302873704a34577c8eb67d"
 PKG_LICENSE="MIT"
 PKG_SITE="https://git.libretro.com/libretro/SameBoy"
 PKG_URL="${PKG_SITE}/-/archive/${PKG_VERSION}/SameBoy-${PKG_VERSION}.tar.gz"

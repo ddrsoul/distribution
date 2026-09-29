@@ -1,5 +1,5 @@
 PKG_NAME="picodrive-lr"
-PKG_VERSION="c4332d608c1005a46ce51236ade9894e0d32e52b"
+PKG_VERSION="733c711a477a642fd2006d5a7a581b2790ec36b4"
 PKG_LICENSE="MAME"
 PKG_SITE="https://github.com/libretro/picodrive"
 PKG_URL="${PKG_SITE}.git"
