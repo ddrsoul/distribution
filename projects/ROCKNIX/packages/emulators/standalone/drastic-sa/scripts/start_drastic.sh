@@ -27,13 +27,23 @@ get_controls
 if [ ! -d "/storage/.config/drastic" ]; then
   mkdir -p /storage/.config/drastic/
   cp -r /usr/config/drastic/* /storage/.config/drastic/
+  cp -f /usr/config/drastic/.advdrastic_version /storage/.config/drastic/
+fi
+
+#Update the advanced_drastic binaries after a system update, keep user settings
+if ! cmp -s /usr/config/drastic/.advdrastic_version /storage/.config/drastic/.advdrastic_version; then
+  cp -f /usr/config/drastic/drastic /storage/.config/drastic/
+  cp -rf /usr/config/drastic/libs /storage/.config/drastic/
+  cp -f /usr/config/drastic/game_database.xml /usr/config/drastic/usrcheat.dat /storage/.config/drastic/
+  cp -rn /usr/config/drastic/resources /usr/config/drastic/microphone /usr/config/drastic/system /storage/.config/drastic/
+  cp -f /usr/config/drastic/.advdrastic_version /storage/.config/drastic/
 fi
 
 if [ ! -d "/storage/.config/drastic/system" ]; then
   mkdir -p /storage/.config/drastic/system
 fi
 
-for bios in nds_bios_arm9.bin nds_bios_arm7.bin
+for bios in nds_bios_arm9.bin nds_bios_arm7.bin nds_firmware.bin
 do
   if [ ! -e "/storage/.config/drastic/system/${bios}" ]; then
      if [ -e "/storage/roms/bios/${bios}" ]; then
@@ -92,10 +102,21 @@ if [ "${HW_DEVICE}" = "S922X" ]; then
   fi
 fi
 
+# RG DS: drastic spans both panels, top screen on DSI-2, touch screen on DSI-1
+if [ "${QUIRK_DEVICE}" = "Anbernic RG DS" ]; then
+  FLAG_READY="/tmp/drastic.ready"
+  if [ ! -e "${FLAG_READY}" ]; then
+    touch ${FLAG_READY}
+    echo 'for_window [app_id="drastic"] output DSI-2 pos 0 0, output DSI-1 power on pos 0 480' >> /storage/.config/sway/config
+    echo 'for_window [app_id="drastic"] floating enable, border none, fullscreen disable, resize set 640 960, move to output DSI-2, move absolute position 0 0' >> /storage/.config/sway/config
+    swaymsg reload
+  fi
+fi
+
 $GPTOKEYB "drastic" -c "drastic.gptk" &
-# Fix actual touch inputs by replacing touch->mouse translation and add hw mic support
-export LD_PRELOAD="/usr/lib/libdrastouch.so"
-export SDL_TOUCH_MOUSE_EVENTS="0"
-export DSHOOK_MIC_THRESH="${MICTHRESH}"
+# advanced_drastic hook library: layouts, themes, stylus, touch and fake microphone
+export LD_LIBRARY_PATH="/storage/.config/drastic/libs:${LD_LIBRARY_PATH}"
+export LD_PRELOAD="/storage/.config/drastic/libs/libadvdrastic.so"
 ./drastic "$1"
+unset LD_PRELOAD
 kill -9 $(pidof gptokeyb)
