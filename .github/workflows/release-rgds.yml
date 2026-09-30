@@ -1,0 +1,70 @@
+name: Release RG DS build
+
+# Publishes the image and update of an already tested build as a GitHub
+# release. Runs once when this file / the notes change on dev-next, or by hand.
+on:
+  push:
+    branches: [dev-next]
+    paths:
+      - .github/workflows/release-rgds.yml
+      - .github/release-notes/**
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Build run whose ROCKNIX-image / ROCKNIX-update artifacts to publish
+        required: true
+      tag:
+        description: Release tag
+        required: true
+      commit:
+        description: Commit the tag points to (the build's head)
+        required: true
+
+env:
+  RUN_ID: ${{ inputs.run_id || '36691819923' }}
+  TAG: ${{ inputs.tag || 'rgds-20260930' }}
+  COMMIT: ${{ inputs.commit || 'e0886fb5561eb402cdfe540bc073ffa4d4415148' }}
+  TITLE: ROCKNIX RG DS 2026-09-30
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download image and update from the build
+        uses: actions/download-artifact@v8
+        with:
+          pattern: ROCKNIX-{image,update}-*
+          merge-multiple: true
+          path: release
+          run-id: ${{ env.RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Split files over the 2 GiB release asset limit
+        run: |
+          cd release
+          ls -la
+          for f in *; do
+            if [ "$(stat -c %s "$f")" -gt 2000000000 ]; then
+              split -b 1900M -d "$f" "$f.part"
+              rm "$f"
+            fi
+          done
+          ls -la
+
+      - name: Create release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ env.TAG }}
+          commit: ${{ env.COMMIT }}
+          name: ${{ env.TITLE }}
+          bodyFile: .github/release-notes/${{ env.TAG }}.md
+          artifacts: release/*
+          allowUpdates: true
+          replacesArtifacts: true
+          makeLatest: true
+          token: ${{ github.token }}
