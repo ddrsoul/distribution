@@ -112,6 +112,11 @@ jobs:
           exit_code=$(<docker_exit_code)
           exit $exit_code
 
+      - name: Mirror sources
+        if: success()
+        continue-on-error: true
+        uses: ./.github/actions/mirror-sources
+
       - name: Archive output.logs (${{ inputs.DEVICE }}-aarch64-image)
         if: failure()
         uses: actions/upload-artifact@v7

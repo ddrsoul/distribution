@@ -21,6 +21,16 @@ lock_source_dir() {
   fi
 }
 
+# URL of a file in the personal source mirror (DISTRO_MIRROR2): GitHub
+# releases sharded by the file name's first character, as a release holds a
+# limited number of assets
+distro_mirror2_url() {
+  local c="${1:0:1}"
+  c="${c,,}"
+  [[ "${c}" =~ ^[a-z0-9]$ ]] || c="_"
+  echo "${DISTRO_MIRROR2}-${c}/${1}"
+}
+
 if [ -n "${PKG_URL}" -a -n "${PKG_SOURCE_NAME}" ]; then
   mkdir -p "${SOURCES}/${1}"
 

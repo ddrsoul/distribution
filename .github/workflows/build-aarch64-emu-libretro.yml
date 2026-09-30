@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       actions: write
-      contents: read
+      contents: write
     env:
       EMULATION_DEVICE: no
       ENABLE_32BIT: no
@@ -131,6 +131,11 @@ jobs:
             exit $exit_code
           max_attempts: 6
           retry_interval: 10
+
+      - name: Mirror sources
+        if: success()
+        continue-on-error: true
+        uses: ./.github/actions/mirror-sources
 
       - name: Archive output.logs (${{ inputs.DEVICE }}-aarch64-emu-libretro)
         if: failure()

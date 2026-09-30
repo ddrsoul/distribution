@@ -184,6 +184,8 @@
 
 # Distribution Specific source location
   DISTRO_MIRROR="https://github.com/ROCKNIX/distribution-sources/releases/download/sources-v2"
+  # personal mirror filled by the CI builds, see .github/actions/mirror-sources
+  DISTRO_MIRROR2="https://github.com/ddrsoul/distribution/releases/download/sources-mirror"
   DISTRO_SRC="https://sources.libreelec.tv/$DISTRO_VERSION"
 
 # Default size of system partition, in MB, eg. 512

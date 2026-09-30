@@ -86,6 +86,11 @@ jobs:
           max_attempts: 6
           retry_interval: 10
 
+      - name: Mirror sources
+        if: success()
+        continue-on-error: true
+        uses: ./.github/actions/mirror-sources
+
       - name: Archive output.logs (${{ inputs.DEVICE }}-aarch64-qt6)
         if: failure()
         uses: actions/upload-artifact@v7
