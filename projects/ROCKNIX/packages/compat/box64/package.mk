@@ -2,7 +2,7 @@
 # Copyright (C) 2023 JELOS (https://github.com/JustEnoughLinuxOS)
 
 PKG_NAME="box64"
-PKG_VERSION="3ec5de03c786333ed8d5a51c5b35a8bd6e22b229"
+PKG_VERSION="2f130fab1d6e1a4ee8a71dc60cfdfcc839ad192a" # v0.4.4
 PKG_ARCH="aarch64"
 PKG_LICENSE="MIT"
 PKG_SITE="https://github.com/ptitSeb/box64"
@@ -11,7 +11,9 @@ PKG_DEPENDS_TARGET="toolchain ncurses SDL2 cabextract libXss libXdmcp libXft gtk
 PKG_LONGDESC="Box64 lets you run x86_64 Linux programs (such as games) on non-x86_64 Linux systems, like ARM."
 PKG_TOOLCHAIN="cmake"
 
-PKG_CMAKE_OPTS_TARGET="-DCMAKE_BUILD_TYPE=Release"
+# The dynarec is only enabled by a device preset, enable it everywhere
+PKG_CMAKE_OPTS_TARGET="-DCMAKE_BUILD_TYPE=Release \
+                       -DARM_DYNAREC=On"
 
 case ${DEVICE} in
   RK3588)

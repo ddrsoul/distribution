@@ -95,6 +95,28 @@ then
   cp -f ${SOURCE_DIR}/.config "${CONFIG_DIR}/${GAME}.config"
 fi
 
+#SCSP sync mode from ES (0 = synced to emulated CPU time, 1 = realtime),
+#unset keeps the value from the game's .config
+SCSP_SYNC=$(get_setting scsp_sync_mode "${PLATFORM}" "${GAME}")
+case "${SCSP_SYNC}" in
+  0|1)
+    jq --argjson v "${SCSP_SYNC}" '."SCSP sync mode" = $v' "${CONFIG_DIR}/${GAME}.config" > "${CONFIG_DIR}/${GAME}.config.tmp" \
+      && mv -f "${CONFIG_DIR}/${GAME}.config.tmp" "${CONFIG_DIR}/${GAME}.config" \
+      || rm -f "${CONFIG_DIR}/${GAME}.config.tmp"
+    ;;
+esac
+
+#Max frame skip from ES (how many frames in a row auto frame skip may drop, 1-3),
+#unset keeps the value from the game's .config
+MAX_FSKIP=$(get_setting max_frame_skip "${PLATFORM}" "${GAME}")
+case "${MAX_FSKIP}" in
+  1|2|3)
+    jq --argjson v "${MAX_FSKIP}" '."Max frame skip" = $v' "${CONFIG_DIR}/${GAME}.config" > "${CONFIG_DIR}/${GAME}.config.tmp" \
+      && mv -f "${CONFIG_DIR}/${GAME}.config.tmp" "${CONFIG_DIR}/${GAME}.config" \
+      || rm -f "${CONFIG_DIR}/${GAME}.config.tmp"
+    ;;
+esac
+
 #Set the cores to use
 CORES=$(get_setting "cores" "${PLATFORM}" "${GAME}")
 if [ "${CORES}" = "little" ]

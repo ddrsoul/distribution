@@ -1,0 +1,6 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026-present ROCKNIX (https://github.com/ROCKNIX)
+
+# rockscrape lives on the read-only system partition, keep its cache in /storage
+exec /usr/bin/python3 /usr/lib/rockscrape/rockscrape.py --cache-dir /storage/.cache/rockscrape "$@"

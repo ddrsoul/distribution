@@ -1,0 +1,65 @@
+name: Mirror sources
+description: >
+  Upload the sources this job downloaded (./sources) to the personal source
+  mirror, GitHub releases "sources-mirror-<first char>" in this repository,
+  which scripts/get_archive and scripts/get_git use as a last-resort fallback
+  (DISTRO_MIRROR2). Git checkouts are uploaded as <name>-<version>.git.tar.gz.
+  Only files missing from the mirror are uploaded.
+
+runs:
+  using: composite
+  steps:
+    - name: Upload missing sources to the mirror
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+      run: |
+        set -uo pipefail
+        [ -d sources ] || { echo "No sources directory, nothing to mirror."; exit 0; }
+
+        STAGE="$(mktemp -d)"
+        # archives: everything except the get stamps
+        find sources -mindepth 2 -maxdepth 2 -type f \
+          ! -name '*.url' ! -name '*.sha256' ! -name '*.lock' -print0 |
+          while IFS= read -r -d '' f; do ln -sf "${PWD}/${f}" "${STAGE}/$(basename "${f}")"; done
+        # git checkouts
+        find sources -mindepth 2 -maxdepth 2 -type d -print0 |
+          while IFS= read -r -d '' d; do
+            [ -d "${d}/.git" ] || continue
+            tar -czf "${STAGE}/$(basename "${d}").git.tar.gz" -C "$(dirname "${d}")" "$(basename "${d}")" \
+              || rm -f "${STAGE}/$(basename "${d}").git.tar.gz"
+          done
+
+        shard() {
+          local c="${1:0:1}"
+          c="${c,,}"
+          [[ "${c}" =~ ^[a-z0-9]$ ]] || c="_"
+          echo "sources-mirror-${c}"
+        }
+
+        uploaded=0
+        declare -A existing
+        for f in "${STAGE}"/*; do
+          [ -e "${f}" ] || continue
+          name="$(basename "${f}")"
+          tag="$(shard "${name}")"
+          if [ -z "${existing[${tag}]+x}" ]; then
+            if ! gh release view "${tag}" --repo "${REPO}" >/dev/null 2>&1; then
+              gh release create "${tag}" --repo "${REPO}" --prerelease --latest=false \
+                --title "${tag}" --notes "Source mirror, filled by the CI builds (see .github/actions/mirror-sources)." \
+                >/dev/null 2>&1 || true
+            fi
+            existing[${tag}]="$(gh release view "${tag}" --repo "${REPO}" --json assets --jq '.assets[].name' 2>/dev/null || true)"
+          fi
+          if ! grep -qxF "${name}" <<<"${existing[${tag}]}"; then
+            if gh release upload "${tag}" "${f}" --repo "${REPO}" >/dev/null 2>&1; then
+              echo "Uploaded ${name} -> ${tag}"
+              uploaded=$((uploaded + 1))
+            else
+              echo "::warning::Could not upload ${name} to ${tag}"
+            fi
+          fi
+        done
+        echo "Uploaded ${uploaded} new file(s) to the source mirror."
+        rm -rf "${STAGE}"

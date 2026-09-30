@@ -30,9 +30,22 @@ unset LD_LIBRARY_PATH
 rm -f "${STAMP_URL}" "${STAMP_SHA}"
 
 PKG_URLS="${PKG_URL}"
+
+# ftp.gnu.org is regularly unreachable from CI runners; try the kernel.org GNU mirror as well
+case "${PKG_URL}" in
+  http*://ftp.gnu.org/gnu/*|http*://ftp.gnu.org/pub/gnu/*|http*://ftpmirror.gnu.org/*)
+    PKG_URLS="${PKG_URLS} https://mirrors.kernel.org/gnu/$(echo "${PKG_URL}" | sed -E 's#^https?://[^/]+/(pub/)?(gnu/)?##')"
+    ;;
+esac
+
 if [ -n "${PACKAGE_MIRROR}" ]
 then
-  PKG_URLS="${PKG_URL} ${PACKAGE_MIRROR}"
+  PKG_URLS="${PKG_URLS} ${PACKAGE_MIRROR}"
+fi
+
+if [ -n "${DISTRO_MIRROR2}" ]
+then
+  PKG_URLS="${PKG_URLS} $(distro_mirror2_url "${PKG_SOURCE_NAME}")"
 fi
 
 NBWGET=10

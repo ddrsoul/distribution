@@ -6,7 +6,7 @@ PKG_VERSION=""
 PKG_LICENSE="custom"
 PKG_SITE=""
 PKG_URL=""
-PKG_DEPENDS_TARGET="toolchain rclone"
+PKG_DEPENDS_TARGET="toolchain rclone rockscrape"
 PKG_LONGDESC="OS Modules Package"
 PKG_TOOLCHAIN="manual"
 

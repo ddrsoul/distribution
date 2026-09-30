@@ -26,6 +26,11 @@ LIBRETRO_CORES="81-lr a5200-lr arduous-lr atari800-lr b2-lr beetle-gba-lr beetle
                 snes9x2005_plus-lr snes9x2010-lr stella-lr swanstation-lr tgbdual-lr theodore-lr tic80-lr uzem-lr vba-next-lr        \
                 vbam-lr vecx-lr vice-lr vircon32-lr virtualjaguar-lr xmil-lr wasm4-lr yabasanshiro-lr"
 
+### aarch64 only standalone emulators
+if [ "${ARCH}" = "aarch64" ]; then
+  PKG_EMUS+=" dsperate-sa"
+fi
+
 ### Emulators or cores for specific devices
 case "${DEVICE}" in
   H700)
@@ -811,6 +816,7 @@ makeinstall_target() {
       add_emu_core nds retroarch melonds false
       add_emu_core nds retroarch melondsds false
       add_emu_core nds retroarch desmume false
+      add_emu_core nds dsperate dsperate-sa false
       ;;
     RK3399|RK3566|RK3588)
       add_emu_core nds drastic drastic-sa true
@@ -818,6 +824,7 @@ makeinstall_target() {
       add_emu_core nds retroarch melondsds false
       add_emu_core nds melonds melonds-sa false
       add_emu_core nds retroarch desmume false
+      add_emu_core nds dsperate dsperate-sa false
       install_script "Start MelonDS.sh"
       ;;
     SDM845|SM8250|SM8550)
@@ -826,6 +833,7 @@ makeinstall_target() {
       add_emu_core nds retroarch melonds false
       add_emu_core nds retroarch melondsds false
       add_emu_core nds retroarch desmume false
+      add_emu_core nds dsperate dsperate-sa false
       install_script "Start MelonDS.sh"
       ;;
     SM8650)
@@ -833,6 +841,7 @@ makeinstall_target() {
       add_emu_core nds skyemu skyemu-sa false
       add_emu_core nds retroarch melonds false
       add_emu_core nds retroarch melondsds false
+      add_emu_core nds dsperate dsperate-sa false
       install_script "Start MelonDS.sh"
       ;;
     S922X)
@@ -840,12 +849,14 @@ makeinstall_target() {
       add_emu_core nds retroarch melonds false
       add_emu_core nds retroarch melondsds false
       add_emu_core nds melonds melonds-sa false
+      add_emu_core nds dsperate dsperate-sa false
       install_script "Start MelonDS.sh"
       ;;
     *)
       add_emu_core nds drastic drastic-sa true
       add_emu_core nds retroarch melonds false
       add_emu_core nds retroarch melondsds false
+      add_emu_core nds dsperate dsperate-sa false
     ;;
   esac
   add_es_system nds
@@ -854,10 +865,12 @@ makeinstall_target() {
   case ${DEVICE} in
     H700|RK3326)
       add_emu_core ndsiware retroarch melondsds true
+      add_emu_core ndsiware dsperate dsperate-sa false
     ;;
     *)
       add_emu_core ndsiware retroarch melondsds true
       add_emu_core ndsiware melonds melonds-sa false
+      add_emu_core ndsiware dsperate dsperate-sa false
     ;;
   esac
   add_es_system ndsiware

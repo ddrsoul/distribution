@@ -188,6 +188,22 @@ _fetch_missing_submodule_commits() {
 }
 
 
+# Fall back to a tarball of the checkout in the personal source mirror
+# (DISTRO_MIRROR2) when the repository can't be cloned
+_get_repo_from_mirror() {
+  [[ -n "${DISTRO_MIRROR2}" ]] || return 1
+  local url
+  url="$(distro_mirror2_url "${PKG_SOURCE_NAME}.git.tar.gz")"
+  echo "Clone failed, trying source mirror: ${url}"
+
+  rm -rf "${PACKAGE}"
+  mkdir -p "$(dirname "${PACKAGE}")"
+  wget -q -O - --timeout=30 --tries=3 "${url}" | tar -xzf - -C "$(dirname "${PACKAGE}")" || return 1
+  [[ -d "${PACKAGE}/.git" ]] || return 1
+  git -C "${PACKAGE}" rev-parse HEAD | grep -q "^${PKG_VERSION}"
+}
+
+
 main(){
   # Acquire lock on source dir
   lock_source_dir "${1}"
@@ -206,7 +222,7 @@ main(){
   rm -f "${STAMP_URL}" "${STAMP_SHA}"
 
   # Clone or update the repository
-  _get_repo || exit 1
+  _get_repo || _get_repo_from_mirror || exit 1
 
   # Verify the git hash 
   GIT_SHA=""
