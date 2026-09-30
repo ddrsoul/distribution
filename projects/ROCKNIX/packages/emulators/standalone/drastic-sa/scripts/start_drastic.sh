@@ -112,6 +112,9 @@ fi
 
 $GPTOKEYB "drastic" -c "drastic.gptk" &
 # advanced_drastic hook library: layouts, themes, stylus, touch and fake microphone
+# without this SDL also turns touches into mouse motion, and advanced_drastic
+# then moves the stylus like a trackpad instead of tapping where touched
+export SDL_TOUCH_MOUSE_EVENTS="0"
 export LD_LIBRARY_PATH="/storage/.config/drastic/libs:${LD_LIBRARY_PATH}"
 export LD_PRELOAD="/storage/.config/drastic/libs/libadvdrastic.so"
 ./drastic "$1"
