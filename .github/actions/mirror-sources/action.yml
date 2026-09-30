@@ -53,11 +53,21 @@ runs:
             existing[${tag}]="$(gh release view "${tag}" --repo "${REPO}" --json assets --jq '.assets[].name' 2>/dev/null || true)"
           fi
           if ! grep -qxF "${name}" <<<"${existing[${tag}]}"; then
-            if gh release upload "${tag}" "${f}" --repo "${REPO}" >/dev/null 2>&1; then
+            done_upload=""
+            for attempt in 1 2 3; do
+              # --clobber replaces a half-finished asset left by a failed or
+              # parallel upload (other jobs may upload the same file)
+              if gh release upload "${tag}" "${f}" --repo "${REPO}" --clobber >/dev/null 2>&1; then
+                done_upload=1
+                break
+              fi
+              sleep $((attempt * 20))
+            done
+            if [ -n "${done_upload}" ]; then
               echo "Uploaded ${name} -> ${tag}"
               uploaded=$((uploaded + 1))
             else
-              echo "::warning::Could not upload ${name} to ${tag}"
+              echo "::warning::Could not upload ${name} ($(du -h "${f}" | cut -f1)) to ${tag}"
             fi
           fi
         done
