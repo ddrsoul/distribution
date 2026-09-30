@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026-present ROCKNIX (https://github.com/ROCKNIX)
+
+# Called from post-update and start_drastic.sh.
+
+. /etc/profile
+
+CFG="/storage/.config/drastic"
+
+# A config left by stock DraStic or a manual advanced_drastic install (no
+# .advdrastic_version) makes advanced_drastic crash: keep it as drastic.old
+# and start from a clean copy.
+if [ -d "${CFG}" ] && [ ! -e "${CFG}/.advdrastic_version" ]; then
+  rm -rf "${CFG}.old"
+  mv "${CFG}" "${CFG}.old"
+
+  # rescue saves / savestates a manual install kept inside the folder
+  if [ -d "${CFG}.old/backup" ] && [ ! -L "${CFG}.old/backup" ]; then
+    mkdir -p /storage/roms/nds
+    cp -rn "${CFG}.old/backup/." /storage/roms/nds/
+  fi
+  if [ -d "${CFG}.old/savestates" ] && [ ! -L "${CFG}.old/savestates" ]; then
+    mkdir -p /storage/roms/savestates/nds
+    cp -rn "${CFG}.old/savestates/." /storage/roms/savestates/nds/
+  fi
+fi
+
+if [ ! -d "${CFG}" ]; then
+  mkdir -p "${CFG}"
+  cp -r /usr/config/drastic/. "${CFG}/"
+
+  # keep the user's own BIOS / firmware dumps from the old folder
+  for bios in nds_bios_arm9.bin nds_bios_arm7.bin nds_firmware.bin
+  do
+    if [ -f "${CFG}.old/system/${bios}" ] && [ ! -L "${CFG}.old/system/${bios}" ]; then
+      mkdir -p "${CFG}/system"
+      cp -n "${CFG}.old/system/${bios}" "${CFG}/system/"
+    fi
+  done
+fi
+
+# RG DS: use the dual-screen config shipped with advanced_drastic
+if [ "${QUIRK_DEVICE}" = "Anbernic RG DS" ] && [ -f "${CFG}/config/drastic.cfg.rgds" ]; then
+  mv "${CFG}/config/drastic.cfg.rgds" "${CFG}/config/drastic.cfg"
+fi

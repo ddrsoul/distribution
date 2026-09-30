@@ -20,7 +20,7 @@ fi
 makeinstall_target() {
   mkdir -p ${INSTALL}/usr/bin
   cp -rf ${PKG_DIR}/scripts/* ${INSTALL}/usr/bin
-  chmod +x ${INSTALL}/usr/bin/start_drastic.sh
+  chmod +x ${INSTALL}/usr/bin/start_drastic.sh ${INSTALL}/usr/bin/drastic-config-migrate
 
   mkdir -p ${INSTALL}/usr/config/drastic
   cp -rf ${PKG_BUILD}/* ${INSTALL}/usr/config/drastic/

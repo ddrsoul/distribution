@@ -23,12 +23,9 @@ control-gen_init.sh
 source /storage/.config/gptokeyb/control.ini
 get_controls
 
-#Copy drastic files to .config
-if [ ! -d "/storage/.config/drastic" ]; then
-  mkdir -p /storage/.config/drastic/
-  cp -r /usr/config/drastic/* /storage/.config/drastic/
-  cp -f /usr/config/drastic/.advdrastic_version /storage/.config/drastic/
-fi
+#Create the config, move aside ones from stock DraStic or a manual install,
+#apply the RG DS config
+/usr/bin/drastic-config-migrate
 
 #Update the advanced_drastic binaries after a system update, keep user settings
 if ! cmp -s /usr/config/drastic/.advdrastic_version /storage/.config/drastic/.advdrastic_version; then

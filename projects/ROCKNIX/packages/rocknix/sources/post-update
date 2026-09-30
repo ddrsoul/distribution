@@ -293,3 +293,9 @@ if [ -e "/storage/.config/duckstation/settings.ini" ]; then
   # no confirmation popup
   sed -i 's/ConfirmPowerOff = true/ConfirmPowerOff = false/' /storage/.config/duckstation/settings.ini
 fi
+
+# advanced_drastic: move aside configs from stock DraStic or a manual install
+# (they make it crash) and recreate a clean one
+if [ -x /usr/bin/drastic-config-migrate ]; then
+  /usr/bin/drastic-config-migrate
+fi
