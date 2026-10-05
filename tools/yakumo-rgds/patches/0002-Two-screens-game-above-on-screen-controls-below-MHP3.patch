@@ -1,0 +1,200 @@
+From 5ffad296a2d3a334db8669edd3221f89037adff5 Mon Sep 17 00:00:00 2001
+From: rgds <rgds@localhost>
+Date: Mon, 5 Oct 2026 06:11:22 +0000
+Subject: [PATCH 2/3] Two screens: game above, on-screen controls below
+ (MHP3RD_SPLIT_SCREEN)
+
+---
+ profiles/mhp3rd/host/gpu/vulkan_renderer.cpp  | 37 ++++++++++++++++---
+ .../mhp3rd/host/platform/split_screen.hpp     | 33 +++++++++++++++++
+ profiles/mhp3rd/host/ui/layer.cpp             |  3 ++
+ profiles/mhp3rd/host/ui/touch_overlay.cpp     | 13 +++++++
+ 4 files changed, 81 insertions(+), 5 deletions(-)
+ create mode 100644 profiles/mhp3rd/host/platform/split_screen.hpp
+
+diff --git a/profiles/mhp3rd/host/gpu/vulkan_renderer.cpp b/profiles/mhp3rd/host/gpu/vulkan_renderer.cpp
+index 53054a8..aa9dad5 100644
+--- a/profiles/mhp3rd/host/gpu/vulkan_renderer.cpp
++++ b/profiles/mhp3rd/host/gpu/vulkan_renderer.cpp
+@@ -15,6 +15,7 @@
+ 
+ #include "install/game_identity.hpp"
+ #include "install/user_data.hpp"
++#include "platform/split_screen.hpp"
+ #include "platform/utf8_path.hpp"
+ 
+ #include "perf/frame_stats.hpp"
+@@ -749,6 +750,13 @@ struct VulkanRenderer::Impl {
+             }
+         }
+ #endif
++        // Two screens: the lower half is the on-screen controls' own, always
++        // shown; the picture takes the upper half (update_picture_rect).
++        if (platform::split_screen().on && swapchain_extent.height >= 2u) {
++            const std::uint32_t upper = swapchain_extent.height / 2u;
++            content_rect = {{0, static_cast<std::int32_t>(upper)}, {swapchain_extent.width, swapchain_extent.height - upper}};
++            touch_visible = true;
++        }
+         update_picture_rect();
+     }
+     // The cutout's depth at each edge (left, top, right, bottom) in swapchain
+@@ -774,6 +782,10 @@ struct VulkanRenderer::Impl {
+     void update_picture_rect() {
+         const VkRect2D full{{0, 0}, swapchain_extent};
+         picture_rect = full;
++        if (platform::split_screen().on && swapchain_extent.height >= 2u) {
++            picture_rect = {{0, 0}, {swapchain_extent.width, swapchain_extent.height / 2u}};
++            return;
++        }
+         const auto [left, top, right, bottom] = cutout_px;
+         if (left == 0 && top == 0 && right == 0 && bottom == 0) return;
+         if (picture_beside_cutout()) {
+@@ -1128,7 +1140,8 @@ struct VulkanRenderer::Impl {
+             const bool other = event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN || event.type == SDL_EVENT_KEY_DOWN ||
+                 (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.which != SDL_TOUCH_MOUSEID) ||
+                 (event.type == SDL_EVENT_GAMEPAD_AXIS_MOTION && std::abs(static_cast<int>(event.gaxis.value)) > 16000);
+-            if (other && touch_visible) {
++            // With a screen of their own the controls stay.
++            if (other && touch_visible && !platform::split_screen().on) {
+                 touch_visible = false;
+                 touch.release_all();
+                 action_touch.release_all();
+@@ -1173,8 +1186,11 @@ struct VulkanRenderer::Impl {
+                 touch.finger_up(id);
+             drag = touch.take_camera_drag();
+         }
+-        touch_motion.x += drag.x / static_cast<float>(height);
+-        touch_motion.y += drag.y / static_cast<float>(height);
++        // A drag across the screen's height turns the camera so far; on two
++        // screens, across the lower screen's.
++        const float span = static_cast<float>(platform::split_screen().on ? height / 2 : height);
++        touch_motion.x += drag.x / span;
++        touch_motion.y += drag.y / span;
+     }
+     std::array<bool, input::kKeyPositions> scripted_keys{};
+ 
+@@ -2441,8 +2457,14 @@ bool VulkanRenderer::initialize(const RendererConfig &config, std::string &error
+     // under them). The safe area keeps the picture clear of a camera cutout.
+     window_flags |= SDL_WINDOW_FULLSCREEN;
+ #endif
+-    impl.window = SDL_CreateWindow(config.title.c_str(), static_cast<int>(kPspWidth * window_scale),
+-        static_cast<int>(kPspHeight * window_scale), window_flags);
++    int window_width = static_cast<int>(kPspWidth * window_scale);
++    int window_height = static_cast<int>(kPspHeight * window_scale);
++    // Two screens: the window covers both, one above the other.
++    if (const platform::SplitScreen &split = platform::split_screen(); split.on) {
++        window_width = split.width;
++        window_height = 2 * split.height;
++    }
++    impl.window = SDL_CreateWindow(config.title.c_str(), window_width, window_height, window_flags);
+     if (impl.window == nullptr) {
+         error = std::string("SDL_CreateWindow failed: ") + SDL_GetError();
+         return false;
+@@ -3714,6 +3736,11 @@ void VulkanRenderer::Impl::submit_and_present(
+             pass.renderArea = {{0, 0}, swapchain_extent};
+             vkCmdBeginRenderPass(commands, &pass, VK_SUBPASS_CONTENTS_INLINE);
+             perf::count_render_pass();
++            // Two screens: the interface laid itself out on the upper one
++            // (ui::Layer), but draws over the whole window, the on-screen
++            // controls below included.
++            if (int w = 0, h = 0; platform::split_screen().on && SDL_GetWindowSize(window, &w, &h) && w > 0 && h > 0)
++                ui->DisplaySize = {static_cast<float>(w), static_cast<float>(h)};
+             ImGui_ImplVulkan_RenderDrawData(ui, commands);
+             vkCmdEndRenderPass(commands);
+         }
+diff --git a/profiles/mhp3rd/host/platform/split_screen.hpp b/profiles/mhp3rd/host/platform/split_screen.hpp
+new file mode 100644
+index 0000000..dbe3c04
+--- /dev/null
++++ b/profiles/mhp3rd/host/platform/split_screen.hpp
+@@ -0,0 +1,33 @@
++#pragma once
++
++#include <cstdio>
++#include <cstdlib>
++
++// Two screens one above the other, as on the Anbernic RG DS: the window
++// covers both, the game's picture goes on the upper one and the on-screen
++// controls on the lower one. MHP3RD_SPLIT_SCREEN=<width>x<height> gives one
++// screen's size in pixels (640x480 on the RG DS); the window is that wide and
++// twice as high. Unset, or anything else, and the window is one screen.
++namespace mhp3rd::platform {
++
++struct SplitScreen {
++    bool on{};
++    int width{};  // one screen's size
++    int height{};
++};
++
++[[nodiscard]] inline const SplitScreen &split_screen() {
++    static const SplitScreen value = [] {
++        SplitScreen split;
++        const char *text = std::getenv("MHP3RD_SPLIT_SCREEN");
++        int width = 0;
++        int height = 0;
++        if (text != nullptr && std::sscanf(text, "%dx%d", &width, &height) == 2 && width >= 64 && height >= 64 &&
++            width <= 8192 && height <= 8192)
++            split = {true, width, height};
++        return split;
++    }();
++    return value;
++}
++
++} // namespace mhp3rd::platform
+diff --git a/profiles/mhp3rd/host/ui/layer.cpp b/profiles/mhp3rd/host/ui/layer.cpp
+index 5b7e52b..8af53b1 100644
+--- a/profiles/mhp3rd/host/ui/layer.cpp
++++ b/profiles/mhp3rd/host/ui/layer.cpp
+@@ -9,6 +9,7 @@
+ #include "gpu/vulkan_renderer.hpp"
+ #include "input/bindings.hpp"
+ #include "install/user_data.hpp"
++#include "platform/split_screen.hpp"
+ #include "platform/utf8_path.hpp"
+ #include "settings/settings.hpp"
+ 
+@@ -489,6 +490,8 @@ void Layer::begin_frame() {
+     }
+     ImGui_ImplSDL3_NewFrame();
+     ImGuiIO &io = ImGui::GetIO();
++    // Two screens: menus and dialogs stay on the upper one, with the game.
++    if (platform::split_screen().on) io.DisplaySize.y *= 0.5f;
+     io.ConfigNavSwapGamepadButtons = !confirm_south();
+     if (capturing_binding_ && capture_device_ == Capture::Pad && capture_held_.empty() &&
+         Clock::now() - capture_started_ > kPadCaptureTimeout)
+diff --git a/profiles/mhp3rd/host/ui/touch_overlay.cpp b/profiles/mhp3rd/host/ui/touch_overlay.cpp
+index 35fef6e..f59d569 100644
+--- a/profiles/mhp3rd/host/ui/touch_overlay.cpp
++++ b/profiles/mhp3rd/host/ui/touch_overlay.cpp
+@@ -243,8 +243,20 @@ void draw_action_element(ImDrawList *list, Element element, const input::touch::
+     if (look.selected) list->AddCircle(c, r + t * 3.0f, accent, 0, t * 1.5f);
+ }
+ 
++// The background list is clipped to the interface's area, which on two
++// screens is the upper one only (platform/split_screen.hpp); the controls
++// may be anywhere in the window.
++struct WholeWindow {
++    ImDrawList *list;
++    explicit WholeWindow(ImDrawList *l) : list(l) { list->PushClipRect({0.0f, 0.0f}, {65536.0f, 65536.0f}, false); }
++    ~WholeWindow() { list->PopClipRect(); }
++    WholeWindow(const WholeWindow &) = delete;
++    WholeWindow &operator=(const WholeWindow &) = delete;
++};
++
+ void draw_action_controls(const input::touch::ActionControls &controls, float opacity, std::uint64_t ms) {
+     ImDrawList *list = ImGui::GetBackgroundDrawList();
++    const WholeWindow whole(list);
+     const input::touch::ActionLayout &layout = controls.layout();
+     for (std::size_t i = 0; i < input::touch::kElements; ++i) {
+         const auto element = static_cast<Element>(i);
+@@ -260,6 +272,7 @@ void draw_action_controls(const input::touch::ActionControls &controls, float op
+ 
+ void draw_touch_controls(const input::touch::Controls &controls, float opacity) {
+     ImDrawList *list = ImGui::GetBackgroundDrawList();
++    const WholeWindow whole(list);
+     const input::touch::Layout &layout = controls.layout();
+     const float base = std::clamp(opacity, 0.1f, 1.0f);
+     // PSP colours for the symbols.
+-- 
+2.43.0
+

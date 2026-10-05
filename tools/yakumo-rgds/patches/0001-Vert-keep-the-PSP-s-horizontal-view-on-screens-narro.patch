@@ -1,0 +1,313 @@
+From 13bfbc6d17b0b0c9fe995893a942a384699ac076 Mon Sep 17 00:00:00 2001
+From: rgds <rgds@localhost>
+Date: Mon, 5 Oct 2026 06:08:51 +0000
+Subject: [PATCH 1/3] Vert+: keep the PSP's horizontal view on screens narrower
+ than 480x272
+
+---
+ profiles/mhp3rd/host/camera/game_aspect.cpp | 82 ++++++++++++++++++---
+ profiles/mhp3rd/host/camera/game_aspect.hpp | 12 ++-
+ profiles/mhp3rd/host/hle/hle_media.cpp      |  2 +-
+ profiles/mhp3rd/host/settings/settings.cpp  |  1 +
+ profiles/mhp3rd/host/settings/settings.hpp  |  4 +
+ profiles/mhp3rd/host/ui/menu.cpp            | 15 ++++
+ profiles/mhp3rd/tests/game_aspect_tests.cpp | 45 +++++++++++
+ 7 files changed, 147 insertions(+), 14 deletions(-)
+
+diff --git a/profiles/mhp3rd/host/camera/game_aspect.cpp b/profiles/mhp3rd/host/camera/game_aspect.cpp
+index 0261d33..8688b50 100644
+--- a/profiles/mhp3rd/host/camera/game_aspect.cpp
++++ b/profiles/mhp3rd/host/camera/game_aspect.cpp
+@@ -36,6 +36,9 @@ constexpr std::uint32_t kAspect = 0x08u;
+ constexpr std::uint32_t kFieldOfView = 0x0Cu;
+ constexpr std::uint32_t kBuiltFieldOfView = 0x10u;
+ constexpr std::uint32_t kCameraBytes = 0x11D0u;
++// Vert+ never opens the view wider than this (about 92 degrees high); 4:3
++// needs 1.11.
++constexpr float kMaxKeepWidthFov = 1.6f;
+ 
+ constexpr std::array<CodeWord, 11> kSignature{{
+     {0x0882D5D0u, 0xC4409F74u, "lwc1 f0,-0x608c(v0): the camera's initialisation reads the aspect constant"},
+@@ -56,6 +59,12 @@ struct State {
+     // The port has written something since the game last had its own values.
+     bool changed{};
+     float applied{};
++    // Vert+: the field of view the game gave its camera, and the one the port
++    // wrote over it. `fov_changed` while the camera holds the port's value.
++    bool fov_changed{};
++    std::uint32_t fov_camera{};
++    std::uint32_t fov_game_bits{};
++    std::uint32_t fov_written_bits{};
+ };
+ 
+ State state;
+@@ -81,8 +90,25 @@ std::uint32_t camera_address(const psprecomp::GuestMemory &memory) {
+     return plausible ? address : 0u;
+ }
+ 
++// Vert+: the culling planes' depth factor that keeps a view `aspect` wide
++// with a vertical field of view `fov` inside them. kCullBudget is the margin
++// kept at the game's own field of view, cot^2(0.8722 / 2) = 4.6; a wider one
++// leaves less.
++float cull_depth(float aspect, float fov) {
++    const float cot = 1.0f / std::tan(0.5f * fov);
++    const float budget = kCullBudget / 4.6f * cot * cot;
++    return -std::min(1.5f, budget / std::max(aspect, 1.0f));
++}
++
+ } // namespace
+ 
++float keep_width_fov(float fov, float aspect) {
++    const float game = std::bit_cast<float>(kGameAspectBits);
++    if (!(aspect > 0.0f) || aspect >= game) return fov;
++    const float wanted = 2.0f * std::atan(std::tan(0.5f * fov) * game / aspect);
++    return std::min(wanted, std::max(fov, kMaxKeepWidthFov));
++}
++
+ std::span<const CodeWord> game_aspect_signature() {
+     return kSignature;
+ }
+@@ -107,38 +133,70 @@ bool prepare_game_aspect(psprecomp::Runtime &runtime) {
+     return true;
+ }
+ 
+-void game_aspect_frame(psprecomp::Runtime &runtime, float aspect) {
++void game_aspect_frame(psprecomp::Runtime &runtime, float aspect, bool keep_width) {
+     if (!state.prepared) return;
+     psprecomp::GuestMemory &memory = runtime.memory();
+     const float game = std::bit_cast<float>(kGameAspectBits);
+     // Within a hair of the game's own shape is the game's own shape, written
+     // bit for bit as the game has it.
+     const bool own = !std::isfinite(aspect) || std::abs(aspect - game) < 0.002f;
+-    if (own && !state.changed) return;
++    // Vert+ only ever opens the view of a picture narrower than the PSP's.
++    const bool vert_plus = keep_width && !own && aspect < game;
++    if (own && !state.changed && !state.fov_changed) return;
+     const float wanted = own ? game : std::clamp(aspect, 0.5f, 5.0f);
++    const std::uint32_t camera = camera_address(memory);
++
++    // Vert+: the camera's field of view. A value other than the one the port
++    // wrote is the game's own (a new camera, or the game set it), and becomes
++    // the one to widen.
++    float wanted_fov = 0.0f;
++    if (camera != 0u) {
++        const std::uint32_t found = memory.load32(camera + kFieldOfView);
++        if (!state.fov_changed || camera != state.fov_camera || found != state.fov_written_bits) {
++            state.fov_game_bits = found;
++            state.fov_changed = false;
++        }
++        state.fov_camera = camera;
++        const float game_fov = std::bit_cast<float>(state.fov_game_bits);
++        wanted_fov = vert_plus ? keep_width_fov(game_fov, wanted) : game_fov;
++    }
+ 
+     if (!state.changed || wanted != state.applied) {
+         store_float(memory, kAspectConstant, wanted);
+-        if (own)
+-            memory.store32(kCullDepthConstant, kGameCullDepthBits);
+-        else
+-            store_float(memory, kCullDepthConstant, -std::min(1.5f, kCullBudget / wanted));
+         state.applied = wanted;
+-        std::cout << "[aspect] the game's view is " << wanted << " wide to 1 high\n";
++        std::cout << "[aspect] the game's view is " << wanted << " wide to 1 high"
++                  << (vert_plus ? ", keeping the PSP's width (Vert+)" : "") << '\n';
+     }
++    // The culling planes' depth factor, for the shape and, under Vert+, the
++    // wider field of view the camera will have.
++    if (own)
++        memory.store32(kCullDepthConstant, kGameCullDepthBits);
++    else if (vert_plus && wanted_fov > 0.0f)
++        store_float(memory, kCullDepthConstant, cull_depth(wanted, wanted_fov));
++    else
++        store_float(memory, kCullDepthConstant, -std::min(1.5f, kCullBudget / wanted));
++
+     // The camera took its aspect from the constant when it was set up. Give
+     // it the new one and make the next camera update build the projection
+     // and the culling planes again: it does when the field of view it last
+     // built them with differs from the current one.
+-    if (const std::uint32_t found = camera_address(memory); found != 0u) {
+-        if (load_float(memory, found + kAspect) != wanted) {
+-            store_float(memory, found + kAspect, wanted);
+-            store_float(memory, found + kBuiltFieldOfView, -load_float(memory, found + kFieldOfView));
++    if (camera != 0u) {
++        bool rebuild = false;
++        if (load_float(memory, camera + kAspect) != wanted) {
++            store_float(memory, camera + kAspect, wanted);
++            rebuild = true;
++        }
++        const std::uint32_t fov_bits = vert_plus ? std::bit_cast<std::uint32_t>(wanted_fov) : state.fov_game_bits;
++        if (memory.load32(camera + kFieldOfView) != fov_bits) {
++            memory.store32(camera + kFieldOfView, fov_bits);
++            rebuild = true;
+         }
++        state.fov_changed = fov_bits != state.fov_game_bits;
++        state.fov_written_bits = fov_bits;
++        if (rebuild) store_float(memory, camera + kBuiltFieldOfView, -std::bit_cast<float>(fov_bits));
+     }
+     // Back to the game's own values once the camera has them too. Until a
+     // camera turns up this keeps looking, which costs one read a frame.
+-    const std::uint32_t camera = camera_address(memory);
+     state.changed = !own || camera == 0u || memory.load32(camera + kAspect) != kGameAspectBits;
+ }
+ 
+diff --git a/profiles/mhp3rd/host/camera/game_aspect.hpp b/profiles/mhp3rd/host/camera/game_aspect.hpp
+index 131eb48..ac19b17 100644
+--- a/profiles/mhp3rd/host/camera/game_aspect.hpp
++++ b/profiles/mhp3rd/host/camera/game_aspect.hpp
+@@ -32,6 +32,16 @@ bool prepare_game_aspect(psprecomp::Runtime &runtime);
+ // height of the picture) when it differs from what the game has, or puts back
+ // the game's own 480/272 when the port had changed it. At exactly 480/272 and
+ // with nothing changed before, it writes nothing at all.
+-void game_aspect_frame(psprecomp::Runtime &runtime, float aspect);
++//
++// `keep_width`: a picture narrower than the PSP's (4:3, 16:10) keeps the
++// game's horizontal field of view and shows more above and below (Vert+),
++// instead of keeping the vertical one and cutting the sides. The game's own
++// field of view is written back bit for bit when it no longer applies.
++void game_aspect_frame(psprecomp::Runtime &runtime, float aspect, bool keep_width = false);
++
++// The vertical field of view that keeps `fov`'s horizontal extent at 480/272
++// on a picture `aspect` wide to 1 high, at most kMaxKeepWidthFov. Exposed for
++// tests.
++[[nodiscard]] float keep_width_fov(float fov, float aspect);
+ 
+ } // namespace mhp3rd::camera
+diff --git a/profiles/mhp3rd/host/hle/hle_media.cpp b/profiles/mhp3rd/host/hle/hle_media.cpp
+index f172a2f..209b143 100644
+--- a/profiles/mhp3rd/host/hle/hle_media.cpp
++++ b/profiles/mhp3rd/host/hle/hle_media.cpp
+@@ -490,7 +490,7 @@ void present_frame(Runtime &rt) {
+         if (const std::string why = camera::lock_on_take_note(); !why.empty()) ui::show_note(why);
+         // The view's shape follows the picture's: the game builds its next
+         // projection with the aspect ratio of the target it will draw into.
+-        camera::game_aspect_frame(rt, renderer.game_aspect());
++        camera::game_aspect_frame(rt, renderer.game_aspect(), settings::current().vert_plus);
+         camera::advance(seconds, camera::game_camera_degrees_per_second());
+     }
+     perf::add_render_time(perf::Clock::now() - present_start);
+diff --git a/profiles/mhp3rd/host/settings/settings.cpp b/profiles/mhp3rd/host/settings/settings.cpp
+index 7aafed5..2a86027 100644
+--- a/profiles/mhp3rd/host/settings/settings.cpp
++++ b/profiles/mhp3rd/host/settings/settings.cpp
+@@ -204,6 +204,7 @@ const std::vector<Field> &fields() {
+             [](const Settings &s) { return std::string(s.aspect == Aspect::Stretch ? "0" : "1"); }, nullptr},
+         {"video.aspect", nullptr, [](Settings &s, const std::string &t) { return kAspects.parse(t, s.aspect); },
+             [](const Settings &s) { return kAspects.format(s.aspect); }, nullptr},
++        BOOL_FIELD("video.vert_plus", vert_plus),
+         BOOL_FIELD("video.sharp_screen", sharp_screen),
+         BOOL_FIELD("video.sharp_textures", sharp_textures),
+         {"video.texture_pack", "MHP3RD_TEXTURE_PACK",
+diff --git a/profiles/mhp3rd/host/settings/settings.hpp b/profiles/mhp3rd/host/settings/settings.hpp
+index cc0d7d4..3a23d64 100644
+--- a/profiles/mhp3rd/host/settings/settings.hpp
++++ b/profiles/mhp3rd/host/settings/settings.hpp
+@@ -58,6 +58,10 @@ struct Settings {
+     bool fullscreen{};
+     PresentMode present_mode{PresentMode::Fifo};
+     Aspect aspect{Aspect::Original};
++    // Under Fill, a window narrower than the PSP's screen (4:3, 16:10) keeps
++    // the game's horizontal view and shows more above and below (Vert+),
++    // instead of keeping its height and cutting the sides.
++    bool vert_plus{};
+     bool sharp_screen{};             // nearest instead of linear scaling to the window
+     bool sharp_textures{};           // nearest instead of linear texture sampling
+     bool texture_pack{true};         // draw an installed HD texture pack's images instead of the game's
+diff --git a/profiles/mhp3rd/host/ui/menu.cpp b/profiles/mhp3rd/host/ui/menu.cpp
+index 7b97294..a7de1c7 100644
+--- a/profiles/mhp3rd/host/ui/menu.cpp
++++ b/profiles/mhp3rd/host/ui/menu.cpp
+@@ -386,6 +386,20 @@ void Menu::video() {
+             settings::save();
+         }
+     }
++    {
++        RowOptions o = options_for("video.vert_plus",
++            "On a screen narrower than the PSP's, such as 4:3: Keep height cuts the "
++            "sides of the game's view, Keep width (Vert+) shows as much across as the "
++            "PSP and more above and below.");
++        if (s.aspect != settings::Aspect::Fill) {
++            o.disabled = true;
++            o.note = "Fill only";
++        }
++        if (choice_row("Narrow screens", s.vert_plus ? "Keep width" : "Keep height", o)) {
++            s.vert_plus = !s.vert_plus;
++            settings::save();
++        }
++    }
+     if (choice_row("Scaling filter", s.sharp_screen ? "Sharp" : "Smooth",
+             options_for("video.sharp_screen",
+                 "How the finished picture is scaled to the window: smooth "
+@@ -616,6 +630,7 @@ void Menu::video() {
+         restore("video.fullscreen", s.fullscreen, d.fullscreen);
+         restore("video.window_scale", s.window_scale, d.window_scale);
+         restore("video.aspect", s.aspect, d.aspect);
++        restore("video.vert_plus", s.vert_plus, d.vert_plus);
+         restore("video.sharp_screen", s.sharp_screen, d.sharp_screen);
+         restore("video.sharp_textures", s.sharp_textures, d.sharp_textures);
+         restore("video.ui_textures", s.ui_textures, d.ui_textures);
+diff --git a/profiles/mhp3rd/tests/game_aspect_tests.cpp b/profiles/mhp3rd/tests/game_aspect_tests.cpp
+index 0bcee06..280f1ee 100644
+--- a/profiles/mhp3rd/tests/game_aspect_tests.cpp
++++ b/profiles/mhp3rd/tests/game_aspect_tests.cpp
+@@ -108,6 +108,50 @@ void test_other_code_is_left_alone() {
+     check(f.memory().load32(kCamera + 0x8u) == kGameAspectBits, "nor to its camera");
+ }
+ 
++void test_vert_plus_and_back() {
++    Fixture f;
++    check(prepare_game_aspect(f.runtime), "the matching game code is accepted");
++    const float narrow = 4.0f / 3.0f;
++    const float wider = keep_width_fov(kFieldOfView, narrow);
++    // The horizontal extent stays the PSP's: tan(fov'/2) * 4/3 = tan(fov/2) * 480/272.
++    check(std::abs(std::tan(0.5f * wider) * narrow - std::tan(0.5f * kFieldOfView) * kGameAspect) < 1e-5f,
++        "Vert+ keeps the PSP's horizontal view at 4:3");
++    check(keep_width_fov(kFieldOfView, 21.0f / 9.0f) == kFieldOfView, "Vert+ leaves wider shapes alone");
++    check(keep_width_fov(kFieldOfView, 0.3f) <= 1.6f, "Vert+ opens the view at most so far");
++
++    game_aspect_frame(f.runtime, narrow, true);
++    check(read_float(f.memory(), kCamera + 0x8u) == narrow, "4:3 reaches the camera");
++    check(read_float(f.memory(), kCamera + 0xCu) == wider, "Vert+ widens the camera's field of view");
++    check(read_float(f.memory(), kCamera + 0x10u) != wider, "the camera builds its projection again");
++    check(read_float(f.memory(), kCullDepthConstant) >= -1.5f, "the culling planes stay within the game's");
++
++    // The camera's update rebuilds; the port's field of view is kept, not widened twice.
++    write_float(f.runtime.memory(), kCamera + 0x10u, wider);
++    game_aspect_frame(f.runtime, narrow, true);
++    check(read_float(f.memory(), kCamera + 0xCu) == wider, "Vert+ does not widen its own field of view");
++    check(read_float(f.memory(), kCamera + 0x10u) == wider, "an unchanged view forces nothing");
++
++    // The game sets a field of view of its own: that one is widened.
++    write_float(f.runtime.memory(), kCamera + 0xCu, 0.6f);
++    game_aspect_frame(f.runtime, narrow, true);
++    check(read_float(f.memory(), kCamera + 0xCu) == keep_width_fov(0.6f, narrow), "the game's new view is widened");
++
++    // Keep height again: the game's own field of view comes back bit for bit.
++    game_aspect_frame(f.runtime, narrow, false);
++    check(read_float(f.memory(), kCamera + 0xCu) == 0.6f, "Keep height restores the game's field of view");
++    write_float(f.runtime.memory(), kCamera + 0xCu, kFieldOfView);
++    game_aspect_frame(f.runtime, narrow, true);
++    game_aspect_frame(f.runtime, kGameAspect, true);
++    check(f.memory().load32(kAspectConstant) == kGameAspectBits, "off restores the constant bit for bit");
++    check(f.memory().load32(kCullDepthConstant) == kGameCullDepthBits, "off restores the culling constant");
++    check(f.memory().load32(kCamera + 0x8u) == kGameAspectBits, "off restores the camera's aspect bit for bit");
++    check(read_float(f.memory(), kCamera + 0xCu) == kFieldOfView, "off restores the field of view bit for bit");
++
++    write_float(f.runtime.memory(), kCamera + 0x10u, 1.0f);
++    game_aspect_frame(f.runtime, kGameAspect, true);
++    check(read_float(f.memory(), kCamera + 0x10u) == 1.0f, "once restored, nothing more is written");
++}
++
+ } // namespace
+ 
+ int main() {
+@@ -115,6 +159,7 @@ int main() {
+     test_wide_and_back();
+     test_camera_set_up_later();
+     test_other_code_is_left_alone();
++    test_vert_plus_and_back();
+     if (failures != 0) {
+         std::cerr << failures << " failure(s)\n";
+         return 1;
+-- 
+2.43.0
+
