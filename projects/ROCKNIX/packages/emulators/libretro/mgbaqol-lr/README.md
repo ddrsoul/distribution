@@ -15,6 +15,6 @@ This package installs:
 RetroArch's network commands in the append config and runs
 `start_mgbaqol.sh` in the background.
 
-To update, point `PKG_VERSION` / `PKG_SHA256` at a newer
+To update, set `PKG_VERSION` to a newer
 [release](https://github.com/ddrsoul/mgbaqol/releases) of ddrsoul/mgbaqol.
 Usage, supported games and how it works are described there.
