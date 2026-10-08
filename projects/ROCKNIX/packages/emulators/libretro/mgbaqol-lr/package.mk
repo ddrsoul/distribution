@@ -2,7 +2,7 @@
 # Copyright (C) 2026-present ROCKNIX (https://github.com/ROCKNIX)
 
 PKG_NAME="mgbaqol-lr"
-PKG_VERSION="0.2.0"
+PKG_VERSION="0.3.0"
 PKG_LICENSE="GPL-2.0-or-later"
 PKG_SITE="https://github.com/ddrsoul/mgbaqol"
 PKG_URL="${PKG_SITE}/archive/v${PKG_VERSION}.tar.gz"
