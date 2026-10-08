@@ -17,6 +17,10 @@ runs:
       run: |
         set -uo pipefail
         [ -d sources ] || { echo "No sources directory, nothing to mirror."; exit 0; }
+        # Some runner cleanups remove the GitHub CLI; without it every call fails.
+        command -v gh >/dev/null || { echo "::warning::gh not found, source mirror skipped"; exit 0; }
+        # GitHub release assets must be smaller than 2 GiB.
+        MAX_SIZE=$((2 * 1024 * 1024 * 1024 - 1))
 
         STAGE="$(mktemp -d)"
         # archives: everything except the get stamps
@@ -44,6 +48,11 @@ runs:
           [ -e "${f}" ] || continue
           name="$(basename "${f}")"
           tag="$(shard "${name}")"
+          size="$(stat -L -c %s "${f}")"
+          if [ "${size}" -gt "${MAX_SIZE}" ]; then
+            echo "Skipped ${name} ($(numfmt --to=iec "${size}")): over the 2 GiB release asset limit"
+            continue
+          fi
           if [ -z "${existing[${tag}]+x}" ]; then
             if ! gh release view "${tag}" --repo "${REPO}" >/dev/null 2>&1; then
               gh release create "${tag}" --repo "${REPO}" --prerelease --latest=false \
@@ -57,7 +66,7 @@ runs:
             for attempt in 1 2 3; do
               # --clobber replaces a half-finished asset left by a failed or
               # parallel upload (other jobs may upload the same file)
-              if gh release upload "${tag}" "${f}" --repo "${REPO}" --clobber >/dev/null 2>&1; then
+              if err="$(gh release upload "${tag}" "${f}" --repo "${REPO}" --clobber 2>&1 >/dev/null)"; then
                 done_upload=1
                 break
               fi
@@ -67,7 +76,7 @@ runs:
               echo "Uploaded ${name} -> ${tag}"
               uploaded=$((uploaded + 1))
             else
-              echo "::warning::Could not upload ${name} ($(du -h "${f}" | cut -f1)) to ${tag}"
+              echo "::warning::Could not upload ${name} ($(numfmt --to=iec "${size}")) to ${tag}: $(tail -n 1 <<<"${err}")"
             fi
           fi
         done
