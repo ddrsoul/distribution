@@ -21,10 +21,10 @@ on:
         required: true
 
 env:
-  RUN_ID: ${{ inputs.run_id || '36691819923' }}
-  TAG: ${{ inputs.tag || 'rgds-20260930' }}
-  COMMIT: ${{ inputs.commit || 'e0886fb5561eb402cdfe540bc073ffa4d4415148' }}
-  TITLE: ROCKNIX RG DS 2026-09-30
+  RUN_ID: ${{ inputs.run_id || '37742835221' }}
+  TAG: ${{ inputs.tag || 'rgds-20261008' }}
+  COMMIT: ${{ inputs.commit || '35990423ccff834628683aebfc635e32173ec8a5' }}
+  TITLE: ROCKNIX RG DS 2026-10-08
 
 jobs:
   release:

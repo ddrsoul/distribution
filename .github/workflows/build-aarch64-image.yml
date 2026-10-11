@@ -44,7 +44,7 @@ jobs:
       - name: Maximize build space
         uses: justinthelaw/maximize-github-runner-space@v0.7.0
         with:
-          skip-components: docker-engine
+          skip-components: docker-engine,gh-cli  # the source mirror step needs gh
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0

@@ -273,6 +273,14 @@ case ${EMULATOR} in
     if [[ ${EXTRAOPTS} != 0 ]]; then
       RUNTHIS=$(echo ${RUNTHIS} | sed "s|--config|${EXTRAOPTS} --config|")
     fi
+
+    ### mgba-qol: live companion on the second screen, only for this core.
+    ### It reads game RAM through RetroArch's network commands.
+    if [ "${CORE}" = "mgbaqol" ]; then
+      echo 'network_cmd_enable = "true"' >> "${RETROARCH_APPEND_CONFIG}"
+      echo 'network_cmd_port = "55355"' >> "${RETROARCH_APPEND_CONFIG}"
+      /usr/bin/start_mgbaqol.sh "${ROMNAME}" &
+    fi
   ;;
   *)
     case ${PLATFORM} in
@@ -398,6 +406,8 @@ else
         ${VERBOSE} && log $0 "Executing $(eval echo ${RUNTHIS})"
         eval ${RUNTHIS} &>>${OUTPUT_LOG}
         ret_error=$?
+        # The companion also exits on its own a few seconds after RetroArch.
+        [ "${CORE}" = "mgbaqol" ] && pkill -f /usr/share/mgbaqol/main.py
 fi
 
 ### Switch back to performance mode to clean up
