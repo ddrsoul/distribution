@@ -2,13 +2,13 @@
 # Copyright (C) 2026-present ROCKNIX (https://github.com/ROCKNIX)
 
 PKG_NAME="mgbaqol-lr"
-PKG_VERSION="0.2.0"
+PKG_VERSION="0.4.0"
 PKG_LICENSE="GPL-2.0-or-later"
 PKG_SITE="https://github.com/ddrsoul/mgbaqol"
 PKG_URL="${PKG_SITE}/archive/v${PKG_VERSION}.tar.gz"
 PKG_SOURCE_DIR="mgbaqol-${PKG_VERSION}"
 PKG_DEPENDS_TARGET="toolchain mgba-lr Python3 SDL2 SDL2_ttf SDL2_gfx"
-PKG_LONGDESC="mGBA QoL: the mGBA core plus a live Gen 3 Pokemon companion on the second screen."
+PKG_LONGDESC="mGBA QoL: the mGBA core plus a live companion on the second screen (Gen 3 Pokemon, Fire Emblem 7, Advance Wars 2, Castlevania: Aria of Sorrow)."
 PKG_TOOLCHAIN="manual"
 
 makeinstall_target() {
