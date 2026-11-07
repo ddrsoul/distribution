@@ -122,8 +122,15 @@ esac
 #Dual screen handling
 [ "${DEVICE_HAS_DUAL_SCREEN}" = "true" ] && OPTS+=("--dual-window")
 
-#3D anti-aliasing
-[ "${AA}" = "1" ] && OPTS+=("--aa")
+#3D anti-aliasing (enhanced = edge cut on the GPU raster, 3.3.0+)
+case "${AA}" in
+	1)
+		OPTS+=("--aa")
+		;;
+	enhanced)
+		OPTS+=("--aa-enhanced")
+		;;
+esac
 
 #RetroAchievements
 #Casual mode only: DSperate does not support hardcore (yet?).
